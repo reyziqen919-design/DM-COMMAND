@@ -947,6 +947,117 @@
       background: rgba(4, 8, 14, 0.4);
     }
 
+    .token-card {
+      position: relative;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .token-card:active {
+      cursor: grabbing;
+    }
+
+    .token-card.dragging {
+      opacity: 0.36;
+      transform: scale(0.985);
+    }
+
+    .token-card.drop-target {
+      outline: 2px solid var(--gold-2);
+      outline-offset: 2px;
+      background: rgba(230, 184, 92, 0.08);
+    }
+
+    .token-card:focus-visible {
+      outline: 2px solid var(--gold-2);
+      outline-offset: 2px;
+    }
+
+    .token-card button,
+    .token-card .token-drag-handle {
+      user-select: none;
+    }
+
+    .token-card-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .token-drag-handle {
+      display: grid;
+      width: 27px;
+      height: 32px;
+      place-items: center;
+      color: var(--faint);
+      cursor: grab;
+      font-size: 15px;
+      letter-spacing: -0.18em;
+    }
+
+    .token-order-hint {
+      margin: -2px 0 11px;
+      color: var(--faint);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .token-live-label {
+      margin: 0 0 7px;
+      color: var(--gold);
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .token-live-card {
+      width: min(100%, 390px);
+      margin-bottom: 16px;
+      padding: 12px;
+      border: 2px solid var(--gold);
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, rgba(230, 184, 92, 0.055), transparent 58%),
+        rgba(4, 8, 14, 0.48);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+      transition: border-color 120ms ease, border-width 120ms ease, border-radius 120ms ease;
+    }
+
+    .token-live-card .token-avatar {
+      flex: 0 0 auto;
+      transition: border-color 120ms ease, border-width 120ms ease, border-radius 120ms ease;
+    }
+
+    .token-live-card .hp-bar {
+      margin-bottom: 2px;
+    }
+
+    .token-live-placeholder {
+      color: var(--faint);
+      font-size: 14px;
+    }
+
+    .color-field-row {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+    }
+
+    input[type="color"] {
+      width: 46px;
+      min-height: 39px;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    .range-value {
+      color: var(--gold-2);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
     .token-top {
       display: grid;
       grid-template-columns: 46px minmax(0, 1fr) auto;
@@ -1121,7 +1232,7 @@
     }
 
     dialog {
-      width: min(530px, calc(100% - 28px));
+      width: min(690px, calc(100% - 28px));
       padding: 0;
       border: 1px solid var(--line-strong);
       border-radius: 18px;
@@ -1558,6 +1669,7 @@
               <option value="neutral">Neutral</option>
             </select>
           </div>
+          <p class="token-order-hint">Click a token to edit it. Drag cards to rearrange them, or use the arrow controls on each card.</p>
           <div class="scroll-list token-list" id="tokenList"></div>
         </div>
       </section>
@@ -1614,7 +1726,7 @@
     </main>
 
     <footer class="footer">
-      <span><strong>DM Command Panel</strong> · Standalone Edition 1.0</span>
+      <span><strong>DM Command Panel</strong> · Standalone Edition 1.1</span>
       <span>IndexedDB local storage · No server, login, or external library required</span>
     </footer>
   </div>
@@ -1627,6 +1739,29 @@
       </div>
       <div class="dialog-body">
         <input id="tokenId" type="hidden">
+        <p class="token-live-label">Live preview</p>
+        <div class="token-live-card" id="tokenPreviewCard">
+          <div class="token-top">
+            <div class="token-avatar" id="tokenPreviewAvatar">
+              <img id="tokenPreviewImage" alt="" hidden>
+              <span class="token-live-placeholder" id="tokenPreviewInitial">?</span>
+            </div>
+            <div style="min-width:0">
+              <p class="token-name" id="tokenPreviewName">New character</p>
+              <div class="token-badges">
+                <span class="badge ally" id="tokenPreviewType">ally</span>
+                <span class="badge" id="tokenPreviewAc">AC 10</span>
+              </div>
+            </div>
+            <span class="token-drag-handle" aria-hidden="true">⋮⋮</span>
+          </div>
+          <div class="hp-label">
+            <span id="tokenPreviewHpLabel">Hit points</span>
+            <strong id="tokenPreviewHp">10 / 10</strong>
+          </div>
+          <div class="hp-bar"><span id="tokenPreviewHpBar" style="width:100%"></span></div>
+        </div>
+
         <div class="dialog-grid">
           <label class="field full">
             <span>Name</span>
@@ -1653,10 +1788,40 @@
             <span>Maximum HP</span>
             <input id="tokenMaxHp" type="number" min="1" max="99999" value="10" required>
           </label>
-          <label class="field full">
+          <div class="field full">
             <span>Portrait image</span>
             <input id="tokenImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
             <small class="file-hint" id="tokenImageHint">Optional. PNG, JPG, WEBP, or GIF.</small>
+            <button class="button small danger" id="tokenRemoveImageBtn" type="button" hidden>Remove portrait</button>
+          </div>
+          <label class="field">
+            <span>Border color</span>
+            <span class="color-field-row">
+              <input id="tokenBorderColor" type="color" value="#e6b85c" aria-label="Token border color">
+              <span class="range-value" id="tokenBorderColorValue">#E6B85C</span>
+            </span>
+          </label>
+          <label class="field">
+            <span>Border style</span>
+            <select id="tokenBorderStyle">
+              <option value="solid">Solid</option>
+              <option value="double">Double</option>
+              <option value="dashed">Dashed</option>
+              <option value="dotted">Dotted</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Border thickness</span>
+            <input id="tokenBorderWidth" type="range" min="1" max="6" step="1" value="2">
+            <small class="file-hint"><span class="range-value" id="tokenBorderWidthValue">2 px</span></small>
+          </label>
+          <label class="field">
+            <span>Portrait shape</span>
+            <select id="tokenPortraitShape">
+              <option value="circle">Circle</option>
+              <option value="rounded">Rounded square</option>
+              <option value="square">Square</option>
+            </select>
           </label>
         </div>
         <div class="dialog-actions">
@@ -1674,7 +1839,7 @@
 
     var DB_NAME = "dm-command-panel";
     var DB_VERSION = 1;
-    var APP_VERSION = "standalone-1.0.0";
+    var APP_VERSION = "standalone-1.1.0";
     var BACKUP_FORMAT = "dm-command-panel-backup";
     var BACKUP_SCHEMA = 1;
     var STORE_NAMES = ["settings", "scenes", "tracks", "tokens", "maps", "rolls"];
@@ -1693,6 +1858,9 @@
     var activeAudioUrl = null;
     var activeMapUrl = null;
     var editingTokenImage = null;
+    var tokenPreviewUrl = null;
+    var draggedTokenId = null;
+    var tokenDragMoved = false;
     var sceneUrls = [];
     var tokenUrls = [];
     var mapThumbUrls = [];
@@ -1709,7 +1877,11 @@
         "nextTrackBtn", "volumeRange", "volumeValue", "trackCount", "trackList",
         "addTokenBtn", "tokenSearch", "tokenFilter", "tokenList", "tokenDialog", "tokenForm",
         "tokenDialogTitle", "tokenId", "tokenName", "tokenType", "tokenAc", "tokenHp",
-        "tokenMaxHp", "tokenImage", "tokenImageHint", "cancelTokenBtn",
+        "tokenMaxHp", "tokenImage", "tokenImageHint", "tokenRemoveImageBtn", "tokenBorderColor",
+        "tokenBorderColorValue", "tokenBorderStyle", "tokenBorderWidth", "tokenBorderWidthValue",
+        "tokenPortraitShape", "tokenPreviewCard", "tokenPreviewAvatar", "tokenPreviewImage",
+        "tokenPreviewInitial", "tokenPreviewName", "tokenPreviewType", "tokenPreviewAc",
+        "tokenPreviewHpLabel", "tokenPreviewHp", "tokenPreviewHpBar", "cancelTokenBtn",
         "addMapBtn", "mapFileInput", "mapDropZone", "mapPreview", "mapPlaceholder",
         "activeMapImage", "zoomOutBtn", "zoomResetBtn", "zoomInBtn", "fullscreenMapBtn",
         "mapCount", "mapList", "notesInput", "notesStatus", "notesCount", "toastRegion"
@@ -1822,6 +1994,45 @@
       return items.sort(function (a, b) {
         return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
       });
+    }
+
+    function sortTokens(items) {
+      return items.sort(function (a, b) {
+        var aOrder = Number(a.sortOrder);
+        var bOrder = Number(b.sortOrder);
+        var aHasOrder = Number.isFinite(aOrder);
+        var bHasOrder = Number.isFinite(bOrder);
+        if (aHasOrder && bHasOrder && aOrder !== bOrder) return aOrder - bOrder;
+        if (aHasOrder !== bHasOrder) return aHasOrder ? -1 : 1;
+        return String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+      });
+    }
+
+    function tokenBorderFallback(type) {
+      if (type === "enemy") return "#e36b67";
+      if (type === "ally") return "#66c995";
+      if (type === "npc") return "#75aef4";
+      return "#e6b85c";
+    }
+
+    function validBorderColor(value, type) {
+      var color = String(value || "");
+      return /^#[0-9a-f]{6}$/i.test(color) ? color : tokenBorderFallback(type);
+    }
+
+    function tokenShapeRadius(shape) {
+      if (shape === "square") return "4px";
+      if (shape === "rounded") return "12px";
+      return "50%";
+    }
+
+    function tokenStyleValues(token) {
+      return {
+        color: validBorderColor(token.borderColor, token.type),
+        width: Math.max(1, Math.min(6, Number(token.borderWidth) || 2)),
+        style: ["solid", "double", "dashed", "dotted"].indexOf(token.borderStyle) >= 0 ? token.borderStyle : "solid",
+        shape: ["circle", "rounded", "square"].indexOf(token.portraitShape) >= 0 ? token.portraitShape : "circle"
+      };
     }
 
     function baseName(fileName) {
@@ -2383,10 +2594,44 @@
       el.tokenSearch.addEventListener("input", renderTokens);
       el.tokenFilter.addEventListener("change", renderTokens);
       el.tokenForm.addEventListener("submit", saveTokenFromDialog);
+
+      [
+        el.tokenName, el.tokenType, el.tokenAc, el.tokenHp, el.tokenMaxHp,
+        el.tokenBorderColor, el.tokenBorderStyle, el.tokenBorderWidth, el.tokenPortraitShape
+      ].forEach(function (node) {
+        node.addEventListener("input", updateTokenPreview);
+        node.addEventListener("change", updateTokenPreview);
+      });
+
+      el.tokenImage.addEventListener("change", function () {
+        var chosen = el.tokenImage.files && el.tokenImage.files[0];
+        if (chosen && String(chosen.type || "").indexOf("image/") === 0) {
+          updateTokenPreviewImage(chosen);
+          el.tokenRemoveImageBtn.hidden = false;
+        } else {
+          updateTokenPreviewImage(editingTokenImage);
+        }
+      });
+
+      el.tokenRemoveImageBtn.addEventListener("click", function () {
+        editingTokenImage = null;
+        el.tokenImage.value = "";
+        el.tokenRemoveImageBtn.hidden = true;
+        el.tokenImageHint.textContent = "Portrait removed. Choose a new file if needed.";
+        updateTokenPreviewImage(null);
+      });
+
+      el.tokenDialog.addEventListener("close", function () {
+        if (tokenPreviewUrl) {
+          URL.revokeObjectURL(tokenPreviewUrl);
+          tokenPreviewUrl = null;
+        }
+      });
     }
 
     function openTokenDialog(token) {
       el.tokenForm.reset();
+      var style = tokenStyleValues(token || { type: "ally" });
       editingTokenImage = token && token.image ? token.image : null;
       el.tokenId.value = token ? token.id : "";
       el.tokenName.value = token ? token.name : "";
@@ -2394,17 +2639,77 @@
       el.tokenAc.value = token ? token.ac : 10;
       el.tokenHp.value = token ? token.hp : 10;
       el.tokenMaxHp.value = token ? token.maxHp : 10;
+      el.tokenBorderColor.value = style.color;
+      el.tokenBorderStyle.value = style.style;
+      el.tokenBorderWidth.value = String(style.width);
+      el.tokenPortraitShape.value = style.shape;
       el.tokenImage.value = "";
-      el.tokenDialogTitle.textContent = token ? "Edit token" : "Add token";
+      el.tokenDialogTitle.textContent = token ? "Customize token" : "Add token";
       el.tokenImageHint.textContent = token && token.image
         ? "A portrait is already saved. Choose a new file to replace it."
         : "Optional. PNG, JPG, WEBP, or GIF.";
+      el.tokenRemoveImageBtn.hidden = !editingTokenImage;
+      updateTokenPreview();
+      updateTokenPreviewImage(editingTokenImage);
       if (typeof el.tokenDialog.showModal === "function") {
         el.tokenDialog.showModal();
       } else {
         toast("Your browser does not support the token editor dialog.", "error");
       }
       window.setTimeout(function () { el.tokenName.focus(); }, 30);
+    }
+
+    function updateTokenPreviewImage(blob) {
+      if (tokenPreviewUrl) {
+        URL.revokeObjectURL(tokenPreviewUrl);
+        tokenPreviewUrl = null;
+      }
+
+      if (blob instanceof Blob) {
+        tokenPreviewUrl = URL.createObjectURL(blob);
+        el.tokenPreviewImage.src = tokenPreviewUrl;
+        el.tokenPreviewImage.hidden = false;
+        el.tokenPreviewInitial.hidden = true;
+      } else {
+        el.tokenPreviewImage.removeAttribute("src");
+        el.tokenPreviewImage.hidden = true;
+        el.tokenPreviewInitial.hidden = false;
+      }
+    }
+
+    function updateTokenPreview() {
+      var name = el.tokenName.value.trim() || "New character";
+      var type = el.tokenType.value || "ally";
+      var maxHp = Math.max(1, Math.min(99999, Number(el.tokenMaxHp.value) || 1));
+      var hp = Math.max(0, Math.min(maxHp, Number(el.tokenHp.value) || 0));
+      var ac = Math.max(0, Math.min(99, Number(el.tokenAc.value) || 0));
+      var style = tokenStyleValues({
+        type: type,
+        borderColor: el.tokenBorderColor.value,
+        borderStyle: el.tokenBorderStyle.value,
+        borderWidth: el.tokenBorderWidth.value,
+        portraitShape: el.tokenPortraitShape.value
+      });
+      var percentage = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+
+      el.tokenPreviewName.textContent = name;
+      el.tokenPreviewInitial.textContent = initialFor(name);
+      el.tokenPreviewType.textContent = type;
+      el.tokenPreviewType.className = "badge " + type;
+      el.tokenPreviewAc.textContent = "AC " + ac;
+      el.tokenPreviewHpLabel.textContent = hp === 0 ? "Defeated" : "Hit points";
+      el.tokenPreviewHp.textContent = hp + " / " + maxHp;
+      el.tokenPreviewHpBar.style.width = percentage + "%";
+      el.tokenBorderColorValue.textContent = style.color.toUpperCase();
+      el.tokenBorderWidthValue.textContent = style.width + " px";
+
+      el.tokenPreviewCard.style.borderColor = style.color;
+      el.tokenPreviewCard.style.borderStyle = style.style;
+      el.tokenPreviewCard.style.borderWidth = style.width + "px";
+      el.tokenPreviewAvatar.style.borderColor = style.color;
+      el.tokenPreviewAvatar.style.borderStyle = style.style;
+      el.tokenPreviewAvatar.style.borderWidth = style.width + "px";
+      el.tokenPreviewAvatar.style.borderRadius = tokenShapeRadius(style.shape);
     }
 
     async function saveTokenFromDialog(event) {
@@ -2434,6 +2739,13 @@
         maxHp: maxHp,
         image: chosen || editingTokenImage || null,
         imageMime: chosen ? chosen.type : existing ? existing.imageMime : "",
+        borderColor: validBorderColor(el.tokenBorderColor.value, el.tokenType.value),
+        borderStyle: el.tokenBorderStyle.value,
+        borderWidth: Math.max(1, Math.min(6, Number(el.tokenBorderWidth.value) || 2)),
+        portraitShape: el.tokenPortraitShape.value,
+        sortOrder: existing && Number.isFinite(Number(existing.sortOrder))
+          ? Number(existing.sortOrder)
+          : tokens.length,
         createdAt: existing ? existing.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -2442,8 +2754,9 @@
       if (existing) {
         tokens = tokens.map(function (item) { return item.id === record.id ? record : item; });
       } else {
-        tokens.unshift(record);
+        tokens.push(record);
       }
+      tokens = sortTokens(tokens);
       el.tokenDialog.close();
       renderTokens();
       updateStorageStatus();
@@ -2455,6 +2768,92 @@
       token.updatedAt = new Date().toISOString();
       await putRecord("tokens", token);
       renderTokens();
+    }
+
+    async function persistTokenOrder() {
+      tokens.forEach(function (token, index) {
+        token.sortOrder = index;
+        token.updatedAt = new Date().toISOString();
+      });
+      await putMany("tokens", tokens);
+    }
+
+    async function reorderToken(draggedId, targetId) {
+      if (!draggedId || draggedId === targetId) return;
+      var from = tokens.findIndex(function (item) { return item.id === draggedId; });
+      var to = tokens.findIndex(function (item) { return item.id === targetId; });
+      if (from < 0 || to < 0) return;
+
+      var moved = tokens.splice(from, 1)[0];
+      if (from < to) to -= 1;
+      tokens.splice(to, 0, moved);
+      await persistTokenOrder();
+      renderTokens();
+      toast("Character order saved.", "success");
+    }
+
+    async function moveTokenBy(tokenId, direction) {
+      var index = tokens.findIndex(function (item) { return item.id === tokenId; });
+      var next = index + direction;
+      if (index < 0 || next < 0 || next >= tokens.length) return;
+      var swap = tokens[index];
+      tokens[index] = tokens[next];
+      tokens[next] = swap;
+      await persistTokenOrder();
+      renderTokens();
+    }
+
+    function clearTokenDropTargets() {
+      document.querySelectorAll(".token-card.drop-target").forEach(function (card) {
+        card.classList.remove("drop-target");
+      });
+    }
+
+    function bindTokenDrag(card, token) {
+      card.draggable = true;
+
+      card.addEventListener("dragstart", function (event) {
+        draggedTokenId = token.id;
+        tokenDragMoved = true;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", token.id);
+        window.requestAnimationFrame(function () { card.classList.add("dragging"); });
+      });
+
+      card.addEventListener("dragover", function (event) {
+        if (!draggedTokenId || draggedTokenId === token.id) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        clearTokenDropTargets();
+        card.classList.add("drop-target");
+      });
+
+      card.addEventListener("drop", async function (event) {
+        event.preventDefault();
+        var sourceId = draggedTokenId || event.dataTransfer.getData("text/plain");
+        clearTokenDropTargets();
+        await reorderToken(sourceId, token.id);
+      });
+
+      card.addEventListener("dragend", function () {
+        card.classList.remove("dragging");
+        clearTokenDropTargets();
+        draggedTokenId = null;
+        window.setTimeout(function () { tokenDragMoved = false; }, 120);
+      });
+
+      card.addEventListener("click", function (event) {
+        if (tokenDragMoved || event.target.closest("button")) return;
+        openTokenDialog(token);
+      });
+
+      card.addEventListener("keydown", function (event) {
+        if (event.target !== card) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openTokenDialog(token);
+        }
+      });
     }
 
     function renderTokens() {
@@ -2480,12 +2879,24 @@
       filtered.forEach(function (token) {
         var card = document.createElement("article");
         card.className = "token-card";
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", "Customize " + token.name + ". Drag to reorder.");
+        var visualStyle = tokenStyleValues(token);
+        card.style.borderColor = visualStyle.color;
+        card.style.borderStyle = visualStyle.style;
+        card.style.borderWidth = visualStyle.width + "px";
+        bindTokenDrag(card, token);
 
         var top = document.createElement("div");
         top.className = "token-top";
 
         var avatar = document.createElement("div");
         avatar.className = "token-avatar";
+        avatar.style.borderColor = visualStyle.color;
+        avatar.style.borderStyle = visualStyle.style;
+        avatar.style.borderWidth = visualStyle.width + "px";
+        avatar.style.borderRadius = tokenShapeRadius(visualStyle.shape);
         if (token.image instanceof Blob) {
           var image = document.createElement("img");
           var url = URL.createObjectURL(token.image);
@@ -2515,12 +2926,21 @@
         copy.appendChild(name);
         copy.appendChild(badges);
 
+        var controls = document.createElement("div");
+        controls.className = "token-card-controls";
+        var dragHandle = document.createElement("span");
+        dragHandle.className = "token-drag-handle";
+        dragHandle.textContent = "⋮⋮";
+        dragHandle.title = "Drag to reorder";
+        dragHandle.setAttribute("aria-hidden", "true");
         var edit = button("Edit", "button small");
         edit.addEventListener("click", function () { openTokenDialog(token); });
+        controls.appendChild(dragHandle);
+        controls.appendChild(edit);
 
         top.appendChild(avatar);
         top.appendChild(copy);
-        top.appendChild(edit);
+        top.appendChild(controls);
 
         var hpLabel = document.createElement("div");
         hpLabel.className = "hp-label";
@@ -2551,14 +2971,24 @@
 
         var footer = document.createElement("div");
         footer.className = "token-footer";
+        var tokenIndex = tokens.findIndex(function (item) { return item.id === token.id; });
+        var moveUp = button("↑", "button icon small", "Move " + token.name + " up");
+        var moveDown = button("↓", "button icon small", "Move " + token.name + " down");
         var remove = button("Delete", "button small danger");
+        moveUp.disabled = tokenIndex <= 0;
+        moveDown.disabled = tokenIndex < 0 || tokenIndex >= tokens.length - 1;
+        moveUp.addEventListener("click", function () { moveTokenBy(token.id, -1); });
+        moveDown.addEventListener("click", function () { moveTokenBy(token.id, 1); });
         remove.addEventListener("click", async function () {
           if (!window.confirm("Delete token \"" + token.name + "\"?")) return;
           await deleteRecord("tokens", token.id);
           tokens = tokens.filter(function (item) { return item.id !== token.id; });
+          await persistTokenOrder();
           renderTokens();
           updateStorageStatus();
         });
+        footer.appendChild(moveUp);
+        footer.appendChild(moveDown);
         footer.appendChild(remove);
 
         card.appendChild(top);
@@ -2996,7 +3426,10 @@
 
       scenes = sortNewest(result[0]);
       tracks = sortNewest(result[1]);
-      tokens = sortNewest(result[2]);
+      tokens = sortTokens(result[2]);
+      tokens.forEach(function (token, index) {
+        if (!Number.isFinite(Number(token.sortOrder))) token.sortOrder = index;
+      });
       maps = sortNewest(result[3]);
       rolls = sortNewest(result[4]);
       el.notesInput.value = String(result[5] || "");
